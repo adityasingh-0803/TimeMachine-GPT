@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>TimeMachine GPT</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f8f9fa;
+      padding: 20px;
+      max-width: 600px;
+      margin: auto;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    #chat {
+      margin-top: 20px;
+      white-space: pre-wrap;
+      background: #fff;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h2>💬 Talk to Future You</h2>
+  <input id="name" placeholder="Your Name">
+  <input id="age" placeholder="Your Age">
+  <input id="goals" placeholder="Your Goals (comma-separated)">
+  <input id="values" placeholder="Your Values (comma-separated)">
+  <input id="fears" placeholder="Your Fears (comma-separated)">
+  <textarea id="question" placeholder="Ask your future self something..."></textarea>
+  <button onclick="talk()">Talk to Future You</button>
+  <div id="chat"></div>
+
+  <script>
+    async function talk() {
+      const profile = {
+        name: document.getElementById("name").value,
+        age: document.getElementById("age").value,
+        goals: document.getElementById("goals").value.split(","),
+        values: document.getElementById("values").value.split(","),
+        fears: document.getElementById("fears").value.split(",")
+      };
+
+      const question = document.getElementById("question").value;
+
+      const response = await fetch("http://127.0.0.1:5000/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          profile: profile,
+          messages: [{ role: "user", content: question }]
+        })
+      });
+
+      const data = await response.json();
+      document.getElementById("chat").innerText = "🧠 Future You:\n" + data.reply;
+    }
+  </script>
+</body>
+</html>
