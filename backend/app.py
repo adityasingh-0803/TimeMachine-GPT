@@ -1,17 +1,9 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import openai
+import requests
 
 app = Flask(__name__)
 CORS(app)
-
-openai.api_key = "YOUR_OPENAI_API_KEY"  # Replace with your actual API key
-
-SYSTEM_PROMPT = """
-You are the user's future self, 10 years older, wiser, and emotionally aware.
-Speak with empathy, perspective, and clarity. Use details from the user's profile
-to make your advice personal and motivating. Always answer as if you're them — from the future.
-"""
 
 @app.route("/chat", methods=["POST"])
 def chat():
@@ -19,20 +11,29 @@ def chat():
     messages = data.get("messages", [])
     profile = data.get("profile", {})
 
-    intro = f"User Profile:\nName: {profile.get('name')}\nAge: {profile.get('age')}\nGoals: {', '.join(profile.get('goals', []))}\nValues: {', '.join(profile.get('values', []))}\nFears: {', '.join(profile.get('fears', []))}"
+    question = messages[-1]["content"]
 
-    gpt_messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": intro},
-    ] + messages
+    prompt = f"""
+You are the user's future self, 10 years older and wiser.
 
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=gpt_messages,
-        temperature=0.8
+Speak with insight and empathy. Here's your past profile:
+Name: {profile.get('name')}
+Age: {profile.get('age')}
+Goals: {', '.join(profile.get('goals', []))}
+Values: {', '.join(profile.get('values', []))}
+Fears: {', '.join(profile.get('fears', []))}
+
+They asked: "{question}"
+
+Now respond as their future self:
+"""
+
+    ollama_response = requests.post(
+        "http://localhost:11434/api/generate",
+        json={"model": "llama3", "prompt": prompt, "stream": False}
     )
 
-    reply = response["choices"][0]["message"]["content"]
+    reply = ollama_response.json()["response"]
     return jsonify({"reply": reply})
 
 if __name__ == "__main__":
