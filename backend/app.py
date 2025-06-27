@@ -1,40 +1,50 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-import requests
+from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="../frontend", static_url_path="")
 CORS(app)
+
+model_name = "google/flan-t5-base"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+pipe = pipeline("text2text-generation", model=model, tokenizer=tokenizer)
+
+@app.route("/")
+def index():
+    return send_from_directory(app.static_folder, "index.html")
 
 @app.route("/chat", methods=["POST"])
 def chat():
     data = request.json
-    messages = data.get("messages", [])
-    profile = data.get("profile", {})
+    name = data.get("name", "Someone")
+    age = data.get("age", "?")
+    goals = data.get("goals", "unknown goals")
+    values = data.get("values", "unknown values")
+    fears = data.get("fears", "unknown fears")
+    question = data.get("question", "")
+    tone = data.get("tone", "motivational").lower()
 
-    question = messages[-1]["content"]
+    tone_prompt_map = {
+        "motivational": "in a motivational tone",
+        "poetic": "in a poetic style",
+        "funny": "with a humorous tone",
+        "formal": "in a professional and formal tone"
+    }
 
-    prompt = f"""
-You are the user's future self, 10 years older and wiser.
+    tone_instruction = tone_prompt_map.get(tone, "in a motivational tone")
 
-Speak with insight and empathy. Here's your past profile:
-Name: {profile.get('name')}
-Age: {profile.get('age')}
-Goals: {', '.join(profile.get('goals', []))}
-Values: {', '.join(profile.get('values', []))}
-Fears: {', '.join(profile.get('fears', []))}
-
-They asked: "{question}"
-
-Now respond as their future self:
-"""
-
-    ollama_response = requests.post(
-        "http://localhost:11434/api/generate",
-        json={"model": "llama3", "prompt": prompt, "stream": False}
+    prompt = (
+        f"Imagine you're the future version of {name}, now {age} years old. "
+        f"You've successfully achieved these goals: {goals}. "
+        f"You've conquered fears such as: {fears}. "
+        f"You live by values: {values}. "
+        f"Now, your past self asks: \"{question}\". "
+        f"As the wiser version of yourself, offer heartfelt advice, encouragement, and guidance {tone_instruction}."
     )
 
-    reply = ollama_response.json()["response"]
-    return jsonify({"reply": reply})
+    result = pipe(prompt, max_new_tokens=150)[0]['generated_text']
+    return jsonify({"reply": result})
 
 if __name__ == "__main__":
     app.run(debug=True)
